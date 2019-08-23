@@ -3,6 +3,7 @@ from random import shuffle
 
 import anndata
 import numpy as np
+import pandas as pd
 import scanpy as sc
 from matplotlib import pyplot as plt
 from scipy import sparse
@@ -264,8 +265,9 @@ def batch_removal(network, adata):
     else:
         latent_all = network.to_latent(adata.X)
     adata_latent = anndata.AnnData(latent_all)
-    adata_latent.obs["cell_type"] = adata.obs["cell_type"].tolist()
-    adata_latent.obs["batch"] = adata.obs["batch"].tolist()
+    adata_latent.obs = adata.obs
+    #adata_latent.obs["cell_type"] = adata.obs["cell_type"].tolist()
+    #adata_latent.obs["batch"] = adata.obs["batch"].tolist()
     unique_cell_types = np.unique(adata_latent.obs["cell_type"])
     shared_ct = []
     not_shared_ct = []
@@ -303,18 +305,20 @@ def batch_removal(network, adata):
              del all_shared_ann.obs["concat_batch"]
     if len(not_shared_ct) < 1:
         corrected = anndata.AnnData(network.reconstruct(all_shared_ann.X, use_data=True))
-        corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
-        corrected.obs["batch"] = all_shared_ann.obs["batch"].tolist()
+        corrected.obs = all_shared_ann.obs
+        #corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
+        #corrected.obs["batch"] = all_shared_ann.obs["batch"].tolist()
         corrected.var_names = adata.var_names.tolist()
         return corrected
     else:
         all_not_shared_ann = anndata.AnnData.concatenate(*not_shared_ct, batch_key="concat_batch")
         all_corrected_data = anndata.AnnData.concatenate(all_shared_ann, all_not_shared_ann, batch_key="concat_batch")
-        del all_corrected_data.obs["concat_batch"]
+        if "concat_batch" in all_shared_ann.obs.columns:
+            del all_corrected_data.obs["concat_batch"]
         corrected = anndata.AnnData(network.reconstruct(all_corrected_data.X, use_data=True), )
-        corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist() + all_not_shared_ann.obs[
-            "cell_type"].tolist()
-        corrected.obs["batch"] = all_shared_ann.obs["batch"].tolist() + all_not_shared_ann.obs["batch"].tolist()
+        corrected.obs = pd.concat([all_shared_ann.obs, all_not_shared_ann.obs], sort=False)
+        #corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist() + all_not_shared_ann.obs["cell_type"].tolist()
+        #corrected.obs["batch"] = all_shared_ann.obs["batch"].tolist() + all_not_shared_ann.obs["batch"].tolist()
         corrected.var_names = adata.var_names.tolist()
         return corrected
 
