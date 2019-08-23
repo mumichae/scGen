@@ -294,9 +294,13 @@ def batch_removal(network, adata):
             delta = np.average(max_batch_ann.X, axis=0) - np.average(batch_list[study].X, axis=0)
             batch_list[study].X = delta + batch_list[study].X
             temp_cell[batch_ind[study]].X = batch_list[study].X
-        shared_ct.append(temp_cell)
-    all_shared_ann = anndata.AnnData.concatenate(*shared_ct, batch_key="concat_batch")
-    del all_shared_ann.obs["concat_batch"]
+       shared_ct.append(temp_cell)
+    if len(shared_ct) == 0:
+        all_shared_ann = None
+    else:
+        all_shared_ann = shared_ct[0] if len(shared_ct) > 1 else shared_ct[0].concatenate(*shared_ct[1:], batch_key="concat_batch")
+         if "concat_batch" in all_shared_ann.obs.columns:
+             del all_shared_ann.obs["concat_batch"]
     if len(not_shared_ct) < 1:
         corrected = anndata.AnnData(network.reconstruct(all_shared_ann.X, use_data=True))
         corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
